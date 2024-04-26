@@ -1,11 +1,8 @@
 # Data of the player which is transferred between client and server.
 class PlayerData:
 
-    def __init__(self, x, y, color, radius, outer_radius = 20, num_circles = 20):
-        self.x = x
-        self.y = y
+    def __init__(self, coord, color, player_number, radius=15):
+        self.coord = coord
         self.color = color
         self.radius = radius
-        self.outer_radius = outer_radius # Adjusted outer radius
-        self.num_circles = num_circles
-
+        self.player_number = player_number
