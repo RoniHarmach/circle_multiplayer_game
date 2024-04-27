@@ -1,38 +1,39 @@
-import socket, threading
+import socket, threading, pickle, pygame, time
+from queue import Queue
+from typing import Dict
 from player_data import PlayerData
 from game_protocol import GameProtocol
-import pickle
+from player_state import PlayerState
 from protocol_codes import ProtocolCodes
 
+players_states: Dict[str, PlayerState] = {}
 
 all_to_die = False  # global
 
-player_colors = [
-    (255, 0, 0), #RED
-    (0, 255, 0), #GREEN
-    (0, 0, 255) #BLUE
- ]
-
-player_coords = [
-    (10, 20), (130, 50), (100, 120)
-]
-
-players = []
-
+player_colors = [pygame.Color("red"), pygame.Color("green"), pygame.Color("blue") ]
+player_initial_coords = [(500, 210), (130, 50), (100, 120)]
 
 def open_server_socket():
     srv_sock = socket.socket()
-    port = 5151
+    port = 6060
     srv_sock.bind(('0.0.0.0', port))
     srv_sock.listen(2)
     srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     return srv_sock
 
 
-def create_player():
-    player_number = len(players) + 1
-    player = PlayerData(player_coords[player_number-1], player_colors[player_number-1], player_number)
-    return player
+def create_player_data():
+    player_number = len(players_states) + 1
+    player_data = PlayerData(player_initial_coords[player_number - 1], player_colors[player_number - 1], player_number)
+    return player_data
+
+
+def logtcp(dir, tid, byte_data):
+
+    if dir == 'sent':
+        print(f'{tid} S LOG:Sent     >>> {byte_data}')
+    else:
+        print(f'{tid} S LOG:Recieved <<< {byte_data}')
 
 
 
@@ -40,44 +41,23 @@ def handle_client(sock, tid, addr):
     global all_to_die
     finish = False
     print(f'New Client number {tid} from {addr}')
-    player = create_player()
-    players.append(player)
-
-    serialized_player = pickle.dumps(player)
-
+    player_data = create_player_data()
+    state = PlayerState(client_socket=sock, player_data=player_data)
+    players_states[player_data.player_number] = state
+    serialized_player = pickle.dumps(player_data)
     GameProtocol.send_data(sock, ProtocolCodes.CREATE_PLAYER, serialized_player)
+    time.sleep(2)
+    GameProtocol.send_data(sock, ProtocolCodes.START_GAME, b'')
 
     while not finish:
         if all_to_die:
             print('will close due to main server issue')
             break
-        try:
-            byte_data = sock.recv(1000)  # todo improve it to recv by message size
-            if byte_data == b'':
-                print('Seems client disconnected')
-                break
-            logtcp('recv',tid, byte_data) # print
-            err_size = check_length(byte_data)
-            if err_size != b'':
-                to_send = err_size
-            else:
-                byte_data = byte_data[9:]   # remove length field
-                to_send , finish = handle_request(byte_data)
-            if to_send != '':
-                send_data(sock, tid , to_send) # אפ לא ריק מחזיר את המידע על הבקשה של הלקוח
-            if finish:
-                time.sleep(1)
-                break
-        except socket.error as err:
-            print(f'Socket Error exit client loop: err:  {err}')
-            break
-        except Exception as  err:
-            print(f'General Error %s exit client loop: {err}')
-            print(traceback.format_exc())
-            break
+        code, message = GameProtocol.read_data(sock)
 
-    print(f'Client {tid} Exit')
-    sock.close()
+        print(f"code: {code}")
+
+
 
 def accept_clients(srv_sock):
     threads = []
@@ -102,6 +82,7 @@ def accept_clients(srv_sock):
         t.join()  # עוצר את הטרייד מיין עד ש הטי סוגר את עצמו
     srv_sock.close()  # סוגרים את הסוקט הראשי של השרת
     print('Bye ..')
+
 
 def main():
     global all_to_die

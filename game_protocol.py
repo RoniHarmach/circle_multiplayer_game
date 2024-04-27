@@ -42,6 +42,7 @@ class GameProtocol:
             current_size += len(current_message)
 
         return message
+
     @staticmethod
     def read_data(sock):
         data = sock.recv(1000)
