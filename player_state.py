@@ -1,9 +1,11 @@
 import socket
 from dataclasses import dataclass
+from typing import Optional
+
 from player_data import PlayerData
 
 
 @dataclass
 class PlayerState:
-    player_data: PlayerData
     client_socket: socket
+    player_data: Optional[PlayerData] = None
