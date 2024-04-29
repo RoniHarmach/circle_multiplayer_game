@@ -3,7 +3,6 @@ from typing import Dict
 from game_protocol import GameProtocol
 from mouse_move_handler import MouseMoveHandler
 from player import Player
-from player_data import PlayerData
 from protocol_codes import ProtocolCodes
 from user_event_message import UserEventMessage
 from queue import Queue
@@ -59,6 +58,16 @@ def handle_player_state_request(bdata, screen):
         redraw_screen(screen)
 
 
+def handle_other_players_movements(bdata, screen):
+    deserialized_player_position = pickle.loads(bdata)
+    other_player = other_players[deserialized_player_position[0]]
+    position = deserialized_player_position[1]
+    other_player.player_data.coord = position
+
+    if game_started:
+        redraw_screen(screen)
+
+
 def handle_user_events(message: UserEventMessage, screen):
     if message.code == ProtocolCodes.CREATE_PLAYER:
         handle_create_player_request(message.data, screen)
@@ -66,6 +75,8 @@ def handle_user_events(message: UserEventMessage, screen):
         start_game(screen)
     elif message.code == ProtocolCodes.PLAYER_STATE:
         handle_player_state_request(message.data, screen)
+    elif message.code == ProtocolCodes.PLAYER_MOVED:
+        handle_other_players_movements(message.data, screen)
 
 
 def client_window_handler(client_notification_queue):
@@ -83,7 +94,6 @@ def client_window_handler(client_notification_queue):
                 running = False
                 break
             elif event.type == pygame.MOUSEMOTION and game_started:
-                print("Mouse motion detected:", event.pos)
                 mouse_pos = event.pos
 
             elif event.type == pygame.USEREVENT:

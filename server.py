@@ -39,6 +39,11 @@ def logtcp(dir, tid, byte_data):
         print(f'{tid} S LOG:Recieved <<< {byte_data}')
 
 
+def update_player_position(player_number, message):
+    deserialized_position = pickle.dumps(message)
+    players_states[player_number].player_data.coord = deserialized_position
+
+
 def handle_server_messages(server_notification_queue):
     while True:
         event = server_notification_queue.get()
@@ -50,9 +55,13 @@ def handle_server_messages(server_notification_queue):
                     notify_player_state(player, event.player_number)
                     notify_player_state(event.player_number, player)
         elif event.code == ProtocolCodes.START_GAME:
-
             for player in players_states.keys():
                 notify_start_game(player)
+        elif event.code == ProtocolCodes.PLAYER_MOVED:
+            update_player_position(event.player_number, event.message)
+            for player, player_state in players_states.items():
+                if player != event.player_number:
+                    notify_player_movement(player, event.player_number)
 
 
 def handle_client(sock, player_number, server_notification_queue):
@@ -74,9 +83,20 @@ def get_player_state_message(player_number):
     return serialized_player_data
 
 
+def get_player_position_message(player_number):
+    player_state = players_states[player_number]
+    serialized_player_position = pickle.dumps((player_number, player_state.player_data.coord))
+    return serialized_player_position
+
+
 def notify_create_player(player_number):
     serialized_player_data = get_player_state_message(player_number)
     notify_player(player_number, serialized_player_data, ProtocolCodes.CREATE_PLAYER)
+
+
+def notify_player_movement(notified_player_number, player_changed_number):
+    serialized_player_data = get_player_position_message(player_changed_number)
+    notify_player(notified_player_number, serialized_player_data, ProtocolCodes.PLAYER_MOVED)
 
 
 def notify_player_state(notified_player_number, player_changed_number):
