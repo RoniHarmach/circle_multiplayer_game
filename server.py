@@ -40,7 +40,8 @@ def logtcp(dir, tid, byte_data):
 
 
 def update_player_position(player_number, message):
-    deserialized_position = pickle.dumps(message)
+    deserialized_position = pickle.loads(message)
+    print(f"new coord: {deserialized_position}")
     players_states[player_number].player_data.coord = deserialized_position
 
 

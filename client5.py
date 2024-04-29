@@ -102,7 +102,7 @@ def client_window_handler(client_notification_queue):
         if mouse_pos is not None:
             if mouse_move_handler.handle_movement(player, mouse_pos):
                 redraw_screen(screen)
-                client_notification_queue.put(UserEventMessage(ProtocolCodes.PLAYER_MOVED, struct.pack('ii', *player.player_data.coord)))
+                client_notification_queue.put(UserEventMessage(ProtocolCodes.PLAYER_MOVED, pickle.dumps(player.player_data.coord)))
             else:
                 mouse_pos = None
 
