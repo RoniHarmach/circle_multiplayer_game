@@ -1,21 +1,27 @@
-import socket, threading, pickle, pygame, time
+import socket, threading, pickle, pygame
 from queue import Queue
-from typing import Dict
-
 from game_event import GameEvent
+from game_messages import GameInitMessage, GameStateChangeMessage, PlayerMovementMessage
+from game_manager import GameManager
 from player_data import PlayerData
 from game_protocol import GameProtocol
 from player_state import PlayerState
 from protocol_codes import ProtocolCodes
+from server_event_types import ServerEventType
 
-
-players_states: Dict[int, PlayerState] = {}
-
+PLAYERS_NUMBER = 3
 all_to_die = False  # global
-
 player_colors = [pygame.Color("red"), pygame.Color("green"), pygame.Color("blue") ]
 player_initial_coords = [(500, 210), (130, 50), (100, 120)]
+game_manager = GameManager(PLAYERS_NUMBER)
 
+# 1. don't send client event if player is dead
+# 2. check if a player eats another player then his score and radius increase
+# 3. the eaten player get a message that he is dead
+# 4. adding score bored
+# 5. create random points and make sure you dont make them in players entery place
+# 6. add point once in a while and send in game change new event of add point
+# for 6 i can add new thread that every x time (time sleep) add a point (random place)
 
 def open_server_socket():
     srv_sock = socket.socket()
@@ -27,8 +33,7 @@ def open_server_socket():
 
 
 def create_player_data(player_number):
-    player_data = PlayerData(player_initial_coords[player_number - 1], player_colors[player_number - 1], player_number)
-    return player_data
+    return PlayerData(player_initial_coords[player_number - 1], player_colors[player_number - 1], player_number)
 
 
 def logtcp(dir, tid, byte_data):
@@ -39,30 +44,38 @@ def logtcp(dir, tid, byte_data):
         print(f'{tid} S LOG:Recieved <<< {byte_data}')
 
 
-def update_player_position(player_number, message):
-    deserialized_position = pickle.loads(message)
-    print(f"new coord: {deserialized_position}")
-    players_states[player_number].player_data.coord = deserialized_position
+def handle_player_ready_message(player_number):
+    game_manager.set_player_ready(player_number)
+    if game_manager.is_ready():
+        notify_all_players(b'', ProtocolCodes.START_GAME)
+
+
+def handle_player_movement(player_number, message):
+    coord = pickle.loads(message)
+    game_manager.update_position(player_number, coord)
+    modified_players, removed_dots = game_manager.update_game_state(player_number)
+
+    if len(modified_players) > 0 or len(removed_dots) > 0:
+        # player_data = game_manager.add_dots_points(player_number, removed_dots)
+        change_state_message = GameStateChangeMessage(players=modified_players, removed_dots=removed_dots)
+        serialized_message = pickle.dumps(change_state_message)
+        notify_all_players(serialized_message, ProtocolCodes.GAME_STATE_CHANGE)
+    else:
+        serialized_message = pickle.dumps(PlayerMovementMessage(player_number=player_number, coords=coord))
+        notify_other_players(serialized_message, ProtocolCodes.PLAYER_MOVED, player_number)
 
 
 def handle_server_messages(server_notification_queue):
     while True:
         event = server_notification_queue.get()
-        if event.code == ProtocolCodes.CREATE_PLAYER_REQUEST:
+        if event.code == ServerEventType.CREATE_PLAYER_REQUEST:
             create_player(event.player_number)
-            notify_create_player(event.player_number)
-            for player, player_state in players_states.items():
-                if player != event.player_number:
-                    notify_player_state(player, event.player_number)
-                    notify_player_state(event.player_number, player)
-        elif event.code == ProtocolCodes.START_GAME:
-            for player in players_states.keys():
-                notify_start_game(player)
-        elif event.code == ProtocolCodes.PLAYER_MOVED:
-            update_player_position(event.player_number, event.message)
-            for player, player_state in players_states.items():
-                if player != event.player_number:
-                    notify_player_movement(player, event.player_number)
+            if game_manager.is_all_players_joined():
+                initialize_game()
+        elif event.code == ServerEventType.PLAYER_READY:
+            handle_player_ready_message(event.player_number)
+        elif event.code == ServerEventType.PLAYER_MOVED:
+            handle_player_movement(event.player_number, event.message)
 
 
 def handle_client(sock, player_number, server_notification_queue):
@@ -74,24 +87,30 @@ def handle_client(sock, player_number, server_notification_queue):
             print('will close due to main server issue')
             break
         code, message = GameProtocol.read_data(sock)
-        client_event = GameEvent(code=code, message=message, player_number=player_number)
-        server_notification_queue.put(client_event)
+        if code == ProtocolCodes.CREATE_PLAYER_REQUEST:
+            client_event = GameEvent(code=ServerEventType.CREATE_PLAYER_REQUEST, player_number=player_number)
+            server_notification_queue.put(client_event)
+        elif code == ProtocolCodes.PLAYER_READY:
+            client_event = GameEvent(code=ServerEventType.PLAYER_READY, player_number=player_number)
+            server_notification_queue.put(client_event)
+        elif code == ProtocolCodes.PLAYER_MOVED:
+            client_event = GameEvent(code=ServerEventType.PLAYER_MOVED, message=message, player_number=player_number)
+            server_notification_queue.put(client_event)
+        elif code == ProtocolCodes.PLAYER_READY:
+            client_event = GameEvent(code=ServerEventType.PLAYER_READY, player_number=player_number)
+            server_notification_queue.put(client_event)
 
 
-def get_player_state_message(player_number):
-    player_state = players_states[player_number]
-    serialized_player_data = pickle.dumps(player_state.player_data)
-    return serialized_player_data
+def create_player_state_message(player_number):
+    return  pickle.dumps(game_manager.get_player_data(player_number))
 
 
 def get_player_position_message(player_number):
-    player_state = players_states[player_number]
-    serialized_player_position = pickle.dumps((player_number, player_state.player_data.coord))
-    return serialized_player_position
+    return pickle.dumps(player_number, game_manager.get_player_position(player_number))
 
 
 def notify_create_player(player_number):
-    serialized_player_data = get_player_state_message(player_number)
+    serialized_player_data = create_player_state_message(player_number)
     notify_player(player_number, serialized_player_data, ProtocolCodes.CREATE_PLAYER)
 
 
@@ -100,39 +119,45 @@ def notify_player_movement(notified_player_number, player_changed_number):
     notify_player(notified_player_number, serialized_player_data, ProtocolCodes.PLAYER_MOVED)
 
 
-def notify_player_state(notified_player_number, player_changed_number):
-    print(f"player {notified_player_number} is notified on player {player_changed_number} change")
-    serialized_player_data = get_player_state_message(player_changed_number)
-    notify_player(notified_player_number, serialized_player_data, ProtocolCodes.PLAYER_STATE)
+def notify_all_players(message, code):
+    for player_number in game_manager.get_all_player_numbers():
+        notify_player(player_number, message, code)
 
 
-def notify_start_game(player_number):
-    notify_player(player_number, b'', ProtocolCodes.START_GAME)
-    print(f"sent START_GAME to player {player_number}")
+def notify_other_players(message, code, excluded_player_number):
+    for player_number in game_manager.get_all_player_numbers():
+        if player_number != excluded_player_number:
+            notify_player(player_number, message, code)
 
 
 def notify_player(player_number, message, code):
-    player_state = players_states[player_number]
-    client_socket = player_state.client_socket
-    print(f"notify player {player_number} on {code}")
+    client_socket = game_manager.get_client_socket(player_number)
+    print(f"notifying {player_number} on {code}")
     GameProtocol.send_data(client_socket, code, message)
 
 
 def create_player_state(client_socket, player_number):
+    global game_manager
+
     state = PlayerState(client_socket=client_socket)
-    players_states[player_number] = state
+    game_manager.add_player_state(player_number, state)
 
 
 def create_player(player_number):
-    state = players_states[player_number]
+    global game_manager
+
     player_data = create_player_data(player_number)
-    state.player_data = player_data
-    return player_data
+    game_manager.add_player_data(player_number, player_data)
 
 
-def start_game(server_notification_queue):
-    event = GameEvent(code=ProtocolCodes.START_GAME)
-    server_notification_queue.put(event)
+def initialize_game():
+    dots = game_manager.initialize_dots()
+    for player_number in game_manager.get_all_player_numbers():
+        other_players = game_manager.get_other_players_data(player_number)
+        player_data = game_manager.get_player_data(player_number)
+        message = GameInitMessage(player_data=player_data, other_players=other_players, dots=dots)
+        serialized_message = pickle.dumps(message)
+        notify_player(player_number, serialized_message, ProtocolCodes.GAME_INIT)
 
 
 def accept_clients(srv_sock):
@@ -154,9 +179,7 @@ def accept_clients(srv_sock):
         player_number += 1
         i += 1
         threads.append(t)  ## מוסיפה למערך של הטרדים
-        if player_number == 4:
-            time.sleep(2)
-            start_game(server_notification_queue)
+
         if i > 100000000:  # for tests change it to 4
             print('\nMain thread: going down for maintenance')
             break

@@ -2,7 +2,9 @@ import pygame
 
 
 class Player(pygame.sprite.Sprite):
+
     def __init__(self, player_data):
+        super().__init__()
         self.player_data = player_data
 
     def draw(self, screen):

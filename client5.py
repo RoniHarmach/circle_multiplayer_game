@@ -1,5 +1,8 @@
 import pygame, threading, socket, sys, pickle, struct
 from typing import Dict
+
+from dot import Dot
+from dot_data import DotData
 from game_protocol import GameProtocol
 from mouse_move_handler import MouseMoveHandler
 from player import Player
@@ -8,17 +11,18 @@ from user_event_message import UserEventMessage
 from queue import Queue
 
 other_players: Dict[int, Player] = {}
+dots: Dict[int, Dot] = None
 WIDTH, HEIGHT = 800, 600
 connected = False
-player: Player = None
 game_started = False
 pygame.init()
+player: Player = None
 
 
-def create_player(bdata):
-    global player
-    deserialized_player = pickle.loads(bdata)
-    player = Player(deserialized_player)
+def remove_dots(dot_ids):
+    for key in dot_ids:
+        if key in dots:
+            del dots[key]
 
 
 def load_entry_screen(screen):
@@ -28,12 +32,6 @@ def load_entry_screen(screen):
     pygame.display.flip()
 
 
-def handle_create_player_request(bdata, screen):
-    print("handle create player req")
-    create_player(bdata)
-    load_entry_screen(screen)
-
-
 def start_game(screen):
     global game_started
     print("Starting game")
@@ -41,42 +39,70 @@ def start_game(screen):
     game_started = True
 
 
+def get_live_players():
+    return [other_player for other_player in other_players.values() if other_player.player_data.is_alive]
+
+
 def redraw_screen(screen):
     global player
     screen.fill(pygame.Color("white"))
-    for other_player in other_players.values():
+    for other_player in get_live_players():
         other_player.draw(screen)
-    player.draw(screen)
+    for dot in dots.values():
+        dot.draw(screen)
+    if player.player_data.is_alive:
+        player.draw(screen)
     pygame.display.flip()
-
-
-def handle_player_state_request(bdata, screen):
-    deserialized_player = pickle.loads(bdata)
-    print(f"player {deserialized_player.player_number} changed")
-    other_players[deserialized_player.player_number] = Player(deserialized_player)
-    if game_started:
-        redraw_screen(screen)
 
 
 def handle_other_players_movements(bdata, screen):
     deserialized_player_position = pickle.loads(bdata)
-    other_player = other_players[deserialized_player_position[0]]
-    position = deserialized_player_position[1]
-    other_player.player_data.coord = position
-
-    if game_started:
-        redraw_screen(screen)
+    other_player = other_players[deserialized_player_position.player_number]
+    other_player.player_data.coord = deserialized_player_position.coords
+    redraw_screen(screen)
 
 
-def handle_user_events(message: UserEventMessage, screen):
-    if message.code == ProtocolCodes.CREATE_PLAYER:
-        handle_create_player_request(message.data, screen)
+def initialize_game(data, screen, client_notification_queue):
+    global player, dots, other_players
+    message = pickle.loads(data)
+    dots = {key: Dot(dot_data) for key, dot_data in message.dots.items()}
+    player = Player(message.player_data)
+    other_players = {key: Player(player_data) for key, player_data in message.other_players.items()}
+    client_notification_queue.put(UserEventMessage(ProtocolCodes.PLAYER_READY, b''))
+
+
+def update_player_state(player_data):
+    if player_data.player_number == player.player_data.player_number:
+        player.player_data = player_data
+    else:
+        print(f"updating player {player_data.player_number}: {player_data.is_alive}")
+        other_players[player_data.player_number].player_data = player_data
+
+
+def update_players_states(players):
+    if players is not None:
+        for player_data in players:
+            update_player_state(player_data)
+
+
+def handle_game_state_change(data, screen):
+    message = pickle.loads(data)
+    update_players_states(message.players)
+    remove_dots(message.removed_dots)
+    redraw_screen(screen)
+
+
+def handle_user_events(message: UserEventMessage, screen, client_notification_queue):
+    if message.code == ProtocolCodes.GAME_INIT:
+        initialize_game(message.data, screen, client_notification_queue)
+    elif message.code == ProtocolCodes.LOAD_ENTRY_SCREEN:
+        load_entry_screen(screen)
     elif message.code == ProtocolCodes.START_GAME:
         start_game(screen)
-    elif message.code == ProtocolCodes.PLAYER_STATE:
-        handle_player_state_request(message.data, screen)
     elif message.code == ProtocolCodes.PLAYER_MOVED:
         handle_other_players_movements(message.data, screen)
+    elif message.code == ProtocolCodes.GAME_STATE_CHANGE:
+        handle_game_state_change(message.data, screen)
 
 
 def client_window_handler(client_notification_queue):
@@ -97,7 +123,7 @@ def client_window_handler(client_notification_queue):
                 mouse_pos = event.pos
 
             elif event.type == pygame.USEREVENT:
-                handle_user_events(event.message, screen)
+                handle_user_events(event.message, screen, client_notification_queue)
 
         if mouse_pos is not None:
             if mouse_move_handler.handle_movement(player, mouse_pos):
@@ -114,9 +140,10 @@ def handle_server_messages(server_socket):
     while connected:
         code, bdata = GameProtocol.read_data(server_socket)
         # send server message as user event
+        #print(f"got message with code {code} from server")
         pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(code, bdata)))
 
-        if bdata == b'' and code != ProtocolCodes.START_GAME:
+        if bdata == b'' and code not in [ProtocolCodes.START_GAME, ProtocolCodes.GAME_INIT]:
             print('Seems server disconnected abnormally')
             break
 
@@ -154,7 +181,10 @@ def main(server_ip):
     message_thread.start()
     server_notifications_thread = threading.Thread(target=handle_client_messages, args=(server_socket, client_notification_queue,))
     server_notifications_thread.start()
+    pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(code=ProtocolCodes.LOAD_ENTRY_SCREEN, data=b'')))
+
     create_client_request(server_socket)
+
     window_thread.join()
     server_socket.close()
 

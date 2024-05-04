@@ -1,11 +1,11 @@
 from typing import Any
 from dataclasses import dataclass
-from protocol_codes import ProtocolCodes
+from server_event_types import ServerEventType
 from typing import Optional
 
 
 @dataclass
 class GameEvent:
-    code: ProtocolCodes
+    code: ServerEventType
     message: Optional[Any] = None
     player_number: Optional[int] = None
