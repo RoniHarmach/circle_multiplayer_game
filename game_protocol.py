@@ -1,4 +1,6 @@
 from protocol_codes import ProtocolCodes
+
+
 class GameProtocol:
     DELIMITER = '#'
 

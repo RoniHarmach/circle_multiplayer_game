@@ -9,3 +9,4 @@ class DotData:
     color: str
     radius: int
     points: int
+    increase: int

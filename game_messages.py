@@ -16,6 +16,7 @@ class GameInitMessage:
 class GameStateChangeMessage:
     players: List[PlayerData]
     removed_dots: Optional[List[int]] = None
+    added_dot: Optional[DotData] = None
 
 @dataclass
 class PlayerMovementMessage:

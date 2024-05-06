@@ -10,3 +10,4 @@ class ProtocolCodes(Enum):
     GAME_STATE_CHANGE = "GMSC"
     GAME_INIT = "GMIT"
     LOAD_ENTRY_SCREEN = "LDSC"
+    PLAYER_DIED = "PLDE"

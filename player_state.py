@@ -1,7 +1,6 @@
 import socket
 from dataclasses import dataclass
 from typing import Optional
-
 from player_data import PlayerData
 
 

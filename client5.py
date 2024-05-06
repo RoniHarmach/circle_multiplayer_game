@@ -1,8 +1,6 @@
 import pygame, threading, socket, sys, pickle, struct
 from typing import Dict
-
 from dot import Dot
-from dot_data import DotData
 from game_protocol import GameProtocol
 from mouse_move_handler import MouseMoveHandler
 from player import Player
@@ -14,12 +12,14 @@ other_players: Dict[int, Player] = {}
 dots: Dict[int, Dot] = None
 WIDTH, HEIGHT = 800, 600
 connected = False
-game_started = False
+is_active_player = False
 pygame.init()
 player: Player = None
 
 
 def remove_dots(dot_ids):
+    if dot_ids is None:
+        return
     for key in dot_ids:
         if key in dots:
             del dots[key]
@@ -32,11 +32,14 @@ def load_entry_screen(screen):
     pygame.display.flip()
 
 
+    #start_game
+
+
 def start_game(screen):
-    global game_started
+    global is_active_player
     print("Starting game")
     redraw_screen(screen)
-    game_started = True
+    is_active_player = True
 
 
 def get_live_players():
@@ -72,8 +75,11 @@ def initialize_game(data, screen, client_notification_queue):
 
 
 def update_player_state(player_data):
+    global is_active_player
+
     if player_data.player_number == player.player_data.player_number:
         player.player_data = player_data
+        is_active_player = player_data.is_alive
     else:
         print(f"updating player {player_data.player_number}: {player_data.is_alive}")
         other_players[player_data.player_number].player_data = player_data
@@ -85,10 +91,16 @@ def update_players_states(players):
             update_player_state(player_data)
 
 
+def add_dot(added_dot):
+    if added_dot is not None:
+        dots[added_dot.id] = Dot(added_dot)
+
+
 def handle_game_state_change(data, screen):
     message = pickle.loads(data)
     update_players_states(message.players)
     remove_dots(message.removed_dots)
+    add_dot(message.added_dot)
     redraw_screen(screen)
 
 
@@ -119,7 +131,7 @@ def client_window_handler(client_notification_queue):
             if event.type == pygame.QUIT:
                 running = False
                 break
-            elif event.type == pygame.MOUSEMOTION and game_started:
+            elif event.type == pygame.MOUSEMOTION and is_active_player:
                 mouse_pos = event.pos
 
             elif event.type == pygame.USEREVENT:
@@ -139,8 +151,6 @@ def handle_server_messages(server_socket):
     global connected
     while connected:
         code, bdata = GameProtocol.read_data(server_socket)
-        # send server message as user event
-        #print(f"got message with code {code} from server")
         pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(code, bdata)))
 
         if bdata == b'' and code not in [ProtocolCodes.START_GAME, ProtocolCodes.GAME_INIT]:
@@ -151,7 +161,7 @@ def handle_server_messages(server_socket):
 def open_client_socket(ip):
     global connected
     sock = socket.socket()
-    port = 6060
+    port = 6161
     try:
         sock.connect((ip, port))
         print(f'Connect succeeded {ip}:{port}')
