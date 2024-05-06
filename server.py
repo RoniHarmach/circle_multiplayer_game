@@ -78,6 +78,10 @@ def handle_add_dot(dot_id):
     notify_all_players(serialized_message, ProtocolCodes.GAME_STATE_CHANGE)
 
 
+def handle_end_game():
+    notify_all_players(b'', ProtocolCodes.END_GAME)
+
+
 def handle_server_messages(server_notification_queue):
     while True:
         event = server_notification_queue.get()
@@ -91,6 +95,11 @@ def handle_server_messages(server_notification_queue):
             handle_player_movement(event.player_number, event.message)
         elif event.code == ServerEventType.ADD_DOT:
             handle_add_dot(event.message)
+        elif event.code == ServerEventType.END_GAME:
+            handle_end_game()
+            break
+    print("Exit handle_server_messages thread")
+
 
 
 def handle_client(sock, player_number, server_notification_queue):
@@ -102,6 +111,9 @@ def handle_client(sock, player_number, server_notification_queue):
             print('will close due to main server issue')
             break
         code, message = GameProtocol.read_data(sock)
+        if code == ProtocolCodes.CLIENT_DISCONNECTED:
+            print(f"Player {player_number} Disconnected")
+            finish = True
         if code == ProtocolCodes.CREATE_PLAYER_REQUEST:
             client_event = GameEvent(code=ServerEventType.CREATE_PLAYER_REQUEST, player_number=player_number)
             server_notification_queue.put(client_event)
@@ -114,6 +126,8 @@ def handle_client(sock, player_number, server_notification_queue):
         elif code == ProtocolCodes.PLAYER_READY:
             client_event = GameEvent(code=ServerEventType.PLAYER_READY, player_number=player_number)
             server_notification_queue.put(client_event)
+    game_manager.set_player_is_alive(player_number, False)
+    sock.close()
 
 
 def create_player_state_message(player_number):
@@ -175,15 +189,21 @@ def initialize_game():
 
 
 def dots_creator(server_notification_queue):
-    while True:
-        time.sleep(1)
+    global all_to_die
+
+    while not all_to_die:
+        time.sleep(2)
+
         if game_manager.is_ready():
             dot = game_manager.create_missing_dot()
             if dot is not None:
                 server_notification_queue.put(GameEvent(code=ServerEventType.ADD_DOT, message=dot.id))
+    print("Exit dots_creator thread")
 
 
 def accept_clients(srv_sock):
+    global all_to_die
+
     threads = []
     server_notification_queue = Queue()
 
@@ -194,28 +214,43 @@ def accept_clients(srv_sock):
 
     player_number = 1
     i = 1
+    try:
+        srv_sock.settimeout(30)
+        while i < 4:
+            print('\nMain thread: before accepting ...')
+            cli_sock, addr = srv_sock.accept()  # accepts an incoming connection request from a TCP client.
+            # (clientConnection, clientAddress) = serverSocket.accept()
+            t = threading.Thread(target=handle_client, args=(cli_sock, player_number, server_notification_queue))
+            t.start()  # אומרת לתוכנית לפתוח את הטרד ולהריץ את ההנדל קליינט
+            player_number += 1
+            i += 1
+            threads.append(t)  ## מוסיפה למערך של הטרדים
+    except socket.timeout:
+        print("got timeout")
+        all_to_die = True
+        close_event = GameEvent(code=ServerEventType.END_GAME)
+        server_notification_queue.put(close_event)
+    finally:
 
-    srv_sock.settimeout(15)
-    while i < 4:
-        print('\nMain thread: before accepting ...')
-        cli_sock, addr = srv_sock.accept()  # accepts an incoming connection request from a TCP client.
-        # (clientConnection, clientAddress) = serverSocket.accept()
-        t = threading.Thread(target=handle_client, args=(cli_sock, player_number, server_notification_queue))
-        t.start()  # אומרת לתוכנית לפתוח את הטרד ולהריץ את ההנדל קליינט
-        player_number += 1
-        i += 1
-        threads.append(t)  ## מוסיפה למערך של הטרדים
+        print("waiting  for all clients to close")
+        for t in threads:  #
+            print("Joining thread " + t.getName())
+            # לכל טרד
+            t.join()  # עוצר את הטרייד מיין עד ש הטי סוגר את עצמו
+        print("All Client threads ended")
+        srv_sock.close()
+
+    # all_to_die = True  # מדליקים את הדגל שיגרום לטרדים להפסיק
+    # print('Main thread: waiting to all clints to die')
+    # srv_sock.close()  # סוגרים את הסוקט הראשי של השרת
+    #
+    # for t in threads:  #
+    #     print("Joining thread " + t.getName())
+    #     # לכל טרד
+    #     t.join()  # עוצר את הטרייד מיין עד ש הטי סוגר את עצמו
+    # #srv_sock.close()  # סוגרים את הסוקט הראשי של השרת
 
 
-    all_to_die = True  # מדליקים את הדגל שיגרום לטרדים להפסיק
-    print('Main thread: waiting to all clints to die')
-    srv_sock.close()  # סוגרים את הסוקט הראשי של השרת
-
-    for t in threads:  #
-        print("Joining thread " + t.getName())
-        # לכל טרד
-        t.join()  # עוצר את הטרייד מיין עד ש הטי סוגר את עצמו
-    #srv_sock.close()  # סוגרים את הסוקט הראשי של השרת
     print('Bye ..')
 
 

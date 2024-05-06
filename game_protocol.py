@@ -41,6 +41,8 @@ class GameProtocol:
     @staticmethod
     def read_data(sock):
         data = sock.recv(1000)
+        if data == b'':
+            return ProtocolCodes.CLIENT_DISCONNECTED, b''
         message_size, message = GameProtocol.split_length_field(data)
         current_size = len(message)
         while current_size < message_size:

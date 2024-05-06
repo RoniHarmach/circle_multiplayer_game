@@ -11,3 +11,6 @@ class ProtocolCodes(Enum):
     GAME_INIT = "GMIT"
     LOAD_ENTRY_SCREEN = "LDSC"
     PLAYER_DIED = "PLDE"
+    CLIENT_DISCONNECTED = "CLTD"
+    END_GAME = "ENDG"
+

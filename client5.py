@@ -10,7 +10,7 @@ from queue import Queue
 
 other_players: Dict[int, Player] = {}
 dots: Dict[int, Dot] = None
-WIDTH, HEIGHT = 800, 600
+WIDTH, HEIGHT = 1100, 700
 connected = False
 is_active_player = False
 pygame.init()
@@ -151,6 +151,11 @@ def handle_server_messages(server_socket):
     global connected
     while connected:
         code, bdata = GameProtocol.read_data(server_socket)
+        if code == ProtocolCodes.END_GAME:
+            print("Server ended game")
+            server_socket.close()
+            break
+
         pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(code, bdata)))
 
         if bdata == b'' and code not in [ProtocolCodes.START_GAME, ProtocolCodes.GAME_INIT]:

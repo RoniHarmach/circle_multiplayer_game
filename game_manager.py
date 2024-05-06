@@ -35,8 +35,11 @@ class GameManager:
     def get_dot_data(self, dot_id):
         return self.dots[dot_id]
 
-    def get_player_ia_alive(self, player_number):
+    def get_player_is_alive(self, player_number):
         return self.players_states[player_number].player_data.is_alive
+
+    def set_player_is_alive(self, player_number, is_alive):
+        self.players_states[player_number].player_data.is_alive = is_alive
 
     def update_position(self, player_number, coord):
         self.players_states[player_number].player_data.coord = coord
@@ -65,7 +68,7 @@ class GameManager:
 
     def initialize_dots(self):
         self.dots = {}
-        for i in range(1, 16):
+        for i in range(1, 7):
             GameManager.create_random_dot(self)
         return self.dots
 
@@ -96,7 +99,7 @@ class GameManager:
 
     def create_missing_dot(self):
         dot = None
-        if len(self.dots) < 15:
+        if len(self.dots) < 7:
             dot = self.create_random_dot()
         return dot
 

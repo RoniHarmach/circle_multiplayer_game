@@ -7,3 +7,4 @@ class ServerEventType(Enum):
     START_GAME = 2
     PLAYER_MOVED = 3
     ADD_DOT = 4
+    END_GAME = 5
