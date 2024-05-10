@@ -13,7 +13,7 @@ from server_event_types import ServerEventType
 PLAYERS_NUMBER = 3
 all_to_die = False  # global
 player_colors = [pygame.Color("red"), pygame.Color("green"), pygame.Color("blue") ]
-player_initial_coords = [(500, 210), (130, 50), (100, 120)]
+player_initial_coords = [(500, 210), (130, 400), (300, 120)]
 game_manager = GameManager(PLAYERS_NUMBER)
 
 # 2. check if a player eats another player then his score and radius increase - DID Need new colision

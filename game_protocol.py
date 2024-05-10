@@ -11,6 +11,9 @@ class GameProtocol:
         bytearray_data = str(len(content)).zfill(8).encode() \
                          + GameProtocol.DELIMITER.encode() \
                          + content
+        # if '#' in str(len(content)).zfill(8) + GameProtocol.DELIMITER:
+        #     print ( str(len(content)).zfill(8) + GameProtocol.DELIMITER)
+
         index = 0
         while index < len(bytearray_data):
             size = min(1000, len(bytearray_data) - index)

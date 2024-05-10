@@ -113,6 +113,15 @@ class GameManager:
             player.is_alive = False
         return swallowed_players
 
+    def update_swallowed_by_other_player(self, player_number):
+        player_data = self.get_player_data(player_number)
+        other_players = self.get_other_live_players(player_number)
+        swallower = next((other_player_data for other_player_data in other_players
+                          if CollisionUtils.check_collision(other_player_data.coord, other_player_data.radius, player_data.coord, player_data.radius)), None)
+        if swallower is not None:
+            player_data.is_alive = False
+        return swallower
+
     def add_players_swallowed_points(self, player_number, swallowed_players):
         points = PlayerUtils.get_scores_sum(swallowed_players)
         radius = PlayerUtils.get_radii_sum(swallowed_players)
@@ -149,6 +158,12 @@ class GameManager:
             self.remove_dots(swallowed_dots)
 
         swallowed_players = self.update_swallowed_players(player_number)
+        # swallower = self.update_swallowed_by_other_player(player_number)
+        # if swallower is not None:
+        #     modified_players.append(swallower)
+        #     self.add_players_swallowed_points(swallower.player_number, [self.get_player_data(player_number)])
+        #     modified_players.append(self.get_player_data(player_number))
+
         if len(swallowed_players) > 0:
             self.add_players_swallowed_points(player_number, swallowed_players)
             modified_players += swallowed_players

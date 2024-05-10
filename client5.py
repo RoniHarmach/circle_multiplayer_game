@@ -1,10 +1,12 @@
 import pygame, threading, socket, sys, pickle, struct
 from typing import Dict
 from dot import Dot
+from game_over import GameOver
 from game_protocol import GameProtocol
 from mouse_move_handler import MouseMoveHandler
 from player import Player
 from protocol_codes import ProtocolCodes
+from score_board import ScoreBoard
 from user_event_message import UserEventMessage
 from queue import Queue
 
@@ -15,7 +17,13 @@ connected = False
 is_active_player = False
 pygame.init()
 player: Player = None
+score_board = ScoreBoard()
+game_over = GameOver()
 
+frame_x_start = None
+frame_x_end = None
+frame_y_start = None
+frame_y_end = None
 
 def remove_dots(dot_ids):
     if dot_ids is None:
@@ -46,8 +54,12 @@ def get_live_players():
     return [other_player for other_player in other_players.values() if other_player.player_data.is_alive]
 
 
+def get_other_players_data():
+    return [other_player.player_data for other_player in other_players.values()]
+
+
 def redraw_screen(screen):
-    global player
+    global player, score_board, other_players, player_posintion
     screen.fill(pygame.Color("white"))
     for other_player in get_live_players():
         other_player.draw(screen)
@@ -55,6 +67,9 @@ def redraw_screen(screen):
         dot.draw(screen)
     if player.player_data.is_alive:
         player.draw(screen)
+    else:
+        game_over.draw(screen)
+    score_board.draw(screen)
     pygame.display.flip()
 
 
@@ -69,8 +84,9 @@ def initialize_game(data, screen, client_notification_queue):
     global player, dots, other_players
     message = pickle.loads(data)
     dots = {key: Dot(dot_data) for key, dot_data in message.dots.items()}
-    player = Player(message.player_data)
+    player = Player(player_data=message.player_data)
     other_players = {key: Player(player_data) for key, player_data in message.other_players.items()}
+    score_board.update_state(player.player_data, get_other_players_data())
     client_notification_queue.put(UserEventMessage(ProtocolCodes.PLAYER_READY, b''))
 
 
@@ -97,12 +113,14 @@ def add_dot(added_dot):
 
 
 def handle_game_state_change(data, screen):
+    global player
     message = pickle.loads(data)
     update_players_states(message.players)
     remove_dots(message.removed_dots)
     add_dot(message.added_dot)
+    if message.players is not None and  len(message.players) > 0:
+        score_board.update_state(player.player_data, get_other_players_data())
     redraw_screen(screen)
-
 
 def handle_user_events(message: UserEventMessage, screen, client_notification_queue):
     if message.code == ProtocolCodes.GAME_INIT:
@@ -118,6 +136,7 @@ def handle_user_events(message: UserEventMessage, screen, client_notification_qu
 
 
 def client_window_handler(client_notification_queue):
+    global frame_x_start, frame_x_end, frame_y_start, frame_y_end, player
     running = True
 
     screen = pygame.display.set_mode((WIDTH, HEIGHT))

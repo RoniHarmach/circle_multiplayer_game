@@ -23,10 +23,9 @@ class DotUtils:
             parameters = xlarge
         else:
             parameters = xxlarge
-
         dot_radius = parameters["radius"]
-        random_x = random.randint(int(dot_radius/2), 800-int(dot_radius/2))
-        random_y = random.randint(int(dot_radius/2), 600-int(dot_radius/2))
+        random_x = random.randint(dot_radius + 5, 1100-dot_radius -5)
+        random_y = random.randint(dot_radius + 45, 695 -dot_radius )
 
         return DotData(id=id, coord=(random_x, random_y), color=parameters["color"],radius=dot_radius,
                        points=parameters["points"], increase=parameters["increase"])

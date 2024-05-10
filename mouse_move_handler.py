@@ -1,5 +1,42 @@
 
 class MouseMoveHandler:
+
+    def allow_player_movement(self, player, coord):
+        player_data = player.player_data
+        if self.moved_left(player.player_data, coord) and self.exit_left_side(player_data, coord):
+            return False
+        if self.moved_right(player.player_data, coord) and self.exit_right_side(player_data, coord):
+            return False
+        if self.moved_up(player_data, coord) and self.exit_top_side(player_data, coord):
+            return False
+        if self.moved_down(player.player_data, coord) and self.exit_bottom_side(player_data, coord):
+            return False
+        return True
+
+    def moved_left(self, player_data, coord):
+        return player_data.coord[0] > coord[0]
+
+    def moved_right(self, player_data, coord):
+        return player_data.coord[0] < coord[0]
+
+    def moved_up(self, player_data, coord):
+        return player_data.coord[1] > coord[1]
+
+    def moved_down(self, player_data, coord):
+        return player_data.coord[1] < coord[1]
+
+    def exit_left_side(self, player_data, coord):
+        return coord[0] - player_data.radius - 2 < 0
+
+    def exit_right_side(self, player_data, coord):
+        return coord[0] + player_data.radius + 2 > 1100
+
+    def exit_top_side(self, player_data, coord):
+        return coord[1] - player_data.radius - 40 - 2 < 0
+
+    def exit_bottom_side(self, player_data, coord):
+        return coord[1] + player_data.radius + 2 > 700
+
     def handle_movement(self, player, coord):
         player_moved = False
 
@@ -7,9 +44,14 @@ class MouseMoveHandler:
         dx = coord[0] - player_data.coord[0]
         dy = coord[1] - player_data.coord[1]
         distance = max(abs(dx), abs(dy))  # Maximum of horizontal and vertical distance
-        if distance > 5:
-            speed = 2  # Adjust speed as needed (slower)
-            player_data.coord = (player_data.coord[0] + int(dx / distance * speed),
-                                 player_data.coord[1] + int(dy / distance * speed))
+        speed = 2
+        if distance == 0:
+            return player_moved
+        dx_change = player_data.coord[0] + int(dx / distance * speed)
+        dy_change = player_data.coord[1] + int(dy / distance * speed)
+        # print(f"({player_data.coord[0]},{player_data.coord[1]}) -> ({dx_change},{dy_change}) - mouse at ({coord[0]}, {coord[1]}), dx={dx}, dy={dy}")
+        if distance > 5 and self.allow_player_movement(player, [dx_change, dy_change]):
+            player_data.coord = (dx_change, dy_change)
             player_moved = True
+
         return player_moved
