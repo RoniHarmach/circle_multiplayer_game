@@ -3,6 +3,7 @@ from typing import Dict
 from collision_utils import CollisionUtils
 from dot_data import DotData
 from dot_utils import DotUtils
+from game_constants import *
 from player_state import PlayerState
 from player_utils import PlayerUtils
 
@@ -10,12 +11,10 @@ from player_utils import PlayerUtils
 @dataclass
 class GameManager:
     next_dot_id = 1
-    number_of_players: int
     players_states: Dict[int, PlayerState] = None
     dots: Dict[int, DotData] = None
 
-    def __init__(self, number_of_players):
-        self.number_of_players = number_of_players
+    def __init__(self):
         self.players_states: Dict[int, PlayerState] = {}
 
     def add_player_state(self, player_number, player_state):
@@ -55,7 +54,7 @@ class GameManager:
 
     def is_ready(self):
         return all(player_state.player_ready for player_state in self.players_states.values()) \
-            and len(self.players_states) == self.number_of_players
+            and len(self.players_states) == NUM_OF_PLAYERS
 
     def get_all_player_numbers(self):
         return self.players_states.keys()
@@ -64,11 +63,11 @@ class GameManager:
         return self.players_states[player_number].client_socket
 
     def is_all_players_joined(self):
-        return len(self.players_states) == self.number_of_players
+        return len(self.players_states) == NUM_OF_PLAYERS
 
     def initialize_dots(self):
         self.dots = {}
-        for i in range(1, 7):
+        for i in range(1, MAX_NUM_OF_DOTS):
             GameManager.create_random_dot(self)
         return self.dots
 
@@ -99,7 +98,7 @@ class GameManager:
 
     def create_missing_dot(self):
         dot = None
-        if len(self.dots) < 7:
+        if len(self.dots) < MAX_NUM_OF_DOTS:
             dot = self.create_random_dot()
         return dot
 

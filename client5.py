@@ -1,6 +1,7 @@
-import pygame, threading, socket, sys, pickle, struct
+import pygame, threading, socket, sys, pickle
 from typing import Dict
 from dot import Dot
+from game_constants import *
 from game_over import GameOver
 from game_protocol import GameProtocol
 from mouse_move_handler import MouseMoveHandler
@@ -12,7 +13,6 @@ from queue import Queue
 
 other_players: Dict[int, Player] = {}
 dots: Dict[int, Dot] = None
-WIDTH, HEIGHT = 1100, 700
 connected = False
 is_active_player = False
 pygame.init()
@@ -20,10 +20,6 @@ player: Player = None
 score_board = ScoreBoard()
 game_over = GameOver()
 
-frame_x_start = None
-frame_x_end = None
-frame_y_start = None
-frame_y_end = None
 
 def remove_dots(dot_ids):
     if dot_ids is None:
@@ -38,9 +34,6 @@ def load_entry_screen(screen):
     background_image = pygame.image.load(background_image_path).convert()
     screen.blit(background_image, (0, 0))
     pygame.display.flip()
-
-
-    #start_game
 
 
 def start_game(screen):
@@ -80,7 +73,7 @@ def handle_other_players_movements(bdata, screen):
     redraw_screen(screen)
 
 
-def initialize_game(data, screen, client_notification_queue):
+def initialize_game(data, client_notification_queue):
     global player, dots, other_players
     message = pickle.loads(data)
     dots = {key: Dot(dot_data) for key, dot_data in message.dots.items()}
@@ -122,9 +115,10 @@ def handle_game_state_change(data, screen):
         score_board.update_state(player.player_data, get_other_players_data())
     redraw_screen(screen)
 
+
 def handle_user_events(message: UserEventMessage, screen, client_notification_queue):
     if message.code == ProtocolCodes.GAME_INIT:
-        initialize_game(message.data, screen, client_notification_queue)
+        initialize_game(message.data, client_notification_queue)
     elif message.code == ProtocolCodes.LOAD_ENTRY_SCREEN:
         load_entry_screen(screen)
     elif message.code == ProtocolCodes.START_GAME:
@@ -136,10 +130,10 @@ def handle_user_events(message: UserEventMessage, screen, client_notification_qu
 
 
 def client_window_handler(client_notification_queue):
-    global frame_x_start, frame_x_end, frame_y_start, frame_y_end, player
+    global player
     running = True
 
-    screen = pygame.display.set_mode((WIDTH, HEIGHT))
+    screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     screen.fill(pygame.Color("white"))
     pygame.display.flip()
     mouse_move_handler = MouseMoveHandler()
@@ -163,7 +157,7 @@ def client_window_handler(client_notification_queue):
             else:
                 mouse_pos = None
 
-        pygame.time.Clock().tick(40)
+        pygame.time.Clock().tick(PYGAME_CLOCK_TICK)
 
 
 def handle_server_messages(server_socket):

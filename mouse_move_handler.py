@@ -1,3 +1,5 @@
+from game_constants import *
+
 
 class MouseMoveHandler:
 
@@ -26,16 +28,16 @@ class MouseMoveHandler:
         return player_data.coord[1] < coord[1]
 
     def exit_left_side(self, player_data, coord):
-        return coord[0] - player_data.radius - 2 < 0
+        return coord[0] - player_data.radius - OUTER_CIRCLE_SIZE < 0
 
     def exit_right_side(self, player_data, coord):
-        return coord[0] + player_data.radius + 2 > 1100
+        return coord[0] + player_data.radius + OUTER_CIRCLE_SIZE > SCREEN_WIDTH
 
     def exit_top_side(self, player_data, coord):
-        return coord[1] - player_data.radius - 40 - 2 < 0
+        return coord[1] - player_data.radius - SCORE_BOARD_HEIGHT - OUTER_CIRCLE_SIZE < 0
 
     def exit_bottom_side(self, player_data, coord):
-        return coord[1] + player_data.radius + 2 > 700
+        return coord[1] + player_data.radius + OUTER_CIRCLE_SIZE > SCREEN_HEIGHT
 
     def handle_movement(self, player, coord):
         player_moved = False

@@ -1,6 +1,7 @@
-from tkinter import font
 import pygame
 from pygame.sprite import Sprite
+
+from game_constants import SCREEN_WIDTH, SCORE_BOARD_HEIGHT
 
 
 class ScoreBoard(Sprite):
@@ -24,9 +25,8 @@ class ScoreBoard(Sprite):
             label = self.create_label(f"Player {other_player.player_number} score:{other_player.score}", other_player)
             self.labels.append((label, ((index + 1)* 400, 5)))
 
-
     def draw(self, screen):
-        rect = pygame.Rect(0, 0, 1100, 40)
+        rect = pygame.Rect(0, 0, SCREEN_WIDTH, SCORE_BOARD_HEIGHT)
         pygame.draw.rect(screen, pygame.Color("gray"), rect)
         for label_surface, pos in self.labels:
             screen.blit(label_surface, pos)

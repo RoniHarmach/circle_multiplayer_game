@@ -1,9 +1,10 @@
 import random
 from dot_data import DotData
+from game_constants import SCREEN_WIDTH, SCREEN_HEIGHT
 
+MIN_DISTANCE_FROM_BORDERS = 5
 
 class DotUtils:
-
     @staticmethod
     def create_random_dot(id):
         small = {"radius": 4, "color": "red", "points": 2, "increase": 1}
@@ -24,8 +25,8 @@ class DotUtils:
         else:
             parameters = xxlarge
         dot_radius = parameters["radius"]
-        random_x = random.randint(dot_radius + 5, 1100-dot_radius -5)
-        random_y = random.randint(dot_radius + 45, 695 -dot_radius )
+        random_x = random.randint(dot_radius + MIN_DISTANCE_FROM_BORDERS, SCREEN_WIDTH - dot_radius - MIN_DISTANCE_FROM_BORDERS)
+        random_y = random.randint(dot_radius + 45, SCREEN_HEIGHT - dot_radius )
 
         return DotData(id=id, coord=(random_x, random_y), color=parameters["color"],radius=dot_radius,
                        points=parameters["points"], increase=parameters["increase"])

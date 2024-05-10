@@ -1,6 +1,8 @@
-import socket, threading, pickle, pygame
+import socket, threading, pickle
 import time
 from queue import Queue
+
+from game_constants import PLAYER_COLORS, PLAYER_INITIAL_COORDS
 from game_event import GameEvent
 from game_messages import GameInitMessage, GameStateChangeMessage, PlayerMovementMessage
 from game_manager import GameManager
@@ -10,11 +12,8 @@ from player_state import PlayerState
 from protocol_codes import ProtocolCodes
 from server_event_types import ServerEventType
 
-PLAYERS_NUMBER = 3
 all_to_die = False  # global
-player_colors = [pygame.Color("red"), pygame.Color("green"), pygame.Color("blue") ]
-player_initial_coords = [(500, 210), (130, 400), (300, 120)]
-game_manager = GameManager(PLAYERS_NUMBER)
+game_manager = GameManager()
 
 # 2. check if a player eats another player then his score and radius increase - DID Need new colision
 # 3. the eaten player get a message that he is dead -
@@ -39,7 +38,7 @@ def open_server_socket():
 
 
 def create_player_data(player_number):
-    return PlayerData(player_initial_coords[player_number - 1], player_colors[player_number - 1], player_number)
+    return PlayerData(PLAYER_INITIAL_COORDS[player_number - 1], PLAYER_COLORS[player_number - 1], player_number)
 
 
 def logtcp(dir, tid, byte_data):

@@ -1,0 +1,13 @@
+import pygame
+
+SCREEN_WIDTH = 1100
+SCREEN_HEIGHT = 700
+SCORE_BOARD_HEIGHT = 40
+OUTER_CIRCLE_SIZE = 2
+NUM_OF_PLAYERS = 3
+PLAYER_COLORS = [pygame.Color("red"), pygame.Color("green"), pygame.Color("blue")]
+PLAYER_INITIAL_COORDS = [(500, 210), (130, 400), (300, 120)]
+PYGAME_CLOCK_TICK = 40
+MAX_NUM_OF_DOTS = 7
+
+

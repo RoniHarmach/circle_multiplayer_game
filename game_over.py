@@ -1,7 +1,5 @@
 import pygame
 from pygame.sprite import Sprite
-from PIL import Image
-
 
 class GameOver(Sprite):
 
