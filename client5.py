@@ -150,7 +150,6 @@ def client_window_handler(client_notification_queue):
 
             elif event.type == pygame.USEREVENT:
                 handle_user_events(event.message, screen, client_notification_queue)
-
         if mouse_pos is not None:
             if mouse_move_handler.handle_movement(player, mouse_pos):
                 redraw_screen(screen)
@@ -180,7 +179,7 @@ def handle_server_messages(server_socket):
 def open_client_socket(ip):
     global connected
     sock = socket.socket()
-    port = 6161
+    port = 6060
     try:
         sock.connect((ip, port))
         print(f'Connect succeeded {ip}:{port}')

@@ -30,7 +30,7 @@ game_manager = GameManager()
 #create a thread that generates random point every 5 seconds if the size of the points is less than 7 for example
 def open_server_socket():
     srv_sock = socket.socket()
-    port = 6161
+    port = 6060
     srv_sock.bind(('0.0.0.0', port))
     srv_sock.listen(2)
     srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

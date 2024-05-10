@@ -7,7 +7,8 @@ OUTER_CIRCLE_SIZE = 2
 NUM_OF_PLAYERS = 3
 PLAYER_COLORS = [pygame.Color("red"), pygame.Color("green"), pygame.Color("blue")]
 PLAYER_INITIAL_COORDS = [(500, 210), (130, 400), (300, 120)]
-PYGAME_CLOCK_TICK = 40
+PYGAME_CLOCK_TICK = 60
 MAX_NUM_OF_DOTS = 7
+MIN_EATEN_PLAYER_SCORE = 3
 
 

@@ -1,6 +1,6 @@
 import random
 from dot_data import DotData
-from game_constants import SCREEN_WIDTH, SCREEN_HEIGHT
+from game_constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCORE_BOARD_HEIGHT
 
 MIN_DISTANCE_FROM_BORDERS = 5
 
@@ -26,7 +26,7 @@ class DotUtils:
             parameters = xxlarge
         dot_radius = parameters["radius"]
         random_x = random.randint(dot_radius + MIN_DISTANCE_FROM_BORDERS, SCREEN_WIDTH - dot_radius - MIN_DISTANCE_FROM_BORDERS)
-        random_y = random.randint(dot_radius + 45, SCREEN_HEIGHT - dot_radius )
+        random_y = random.randint(dot_radius + SCORE_BOARD_HEIGHT + MIN_DISTANCE_FROM_BORDERS, SCREEN_HEIGHT - dot_radius - MIN_DISTANCE_FROM_BORDERS)
 
         return DotData(id=id, coord=(random_x, random_y), color=parameters["color"],radius=dot_radius,
                        points=parameters["points"], increase=parameters["increase"])

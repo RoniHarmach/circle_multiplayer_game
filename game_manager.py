@@ -103,30 +103,32 @@ class GameManager:
         return dot
 
     def update_swallowed_players(self, player_number):
+
         player_data = self.get_player_data(player_number)
         other_players = self.get_other_live_players(player_number)
-        swallowed_players = [other_player_data for other_player_data in other_players if
+        eaten_players = [other_player_data for other_player_data in other_players if
                              CollisionUtils.check_collision(player_data.coord, player_data.radius,
-                                                         other_player_data.coord, other_player_data.radius)]
-        for player in swallowed_players:
-            player.is_alive = False
-        return swallowed_players
+                                                            other_player_data.coord, other_player_data.radius)]
 
-    def update_swallowed_by_other_player(self, player_number):
-        player_data = self.get_player_data(player_number)
         other_players = self.get_other_live_players(player_number)
-        swallower = next((other_player_data for other_player_data in other_players
-                          if CollisionUtils.check_collision(other_player_data.coord, other_player_data.radius, player_data.coord, player_data.radius)), None)
-        if swallower is not None:
-            player_data.is_alive = False
-        return swallower
+        eaten_by_players = [other_player_data for other_player_data in other_players
+                                        if CollisionUtils.check_collision(other_player_data.coord,
+                                                                          other_player_data.radius,
+                                                                          player_data.coord, player_data.radius)]
 
-    def add_players_swallowed_points(self, player_number, swallowed_players):
-        points = PlayerUtils.get_scores_sum(swallowed_players)
-        radius = PlayerUtils.get_radii_sum(swallowed_players)
-        player_data = self.get_player_data(player_number)
-        player_data.radius *= (radius / 12)
-        player_data.score += points + len(swallowed_players)
+        for eaten_player in eaten_players:
+            eaten_player.is_alive = False
+            self.add_player_swallowed_points(player_data, eaten_player)
+
+        for player in eaten_by_players:
+            self.add_player_swallowed_points(player, player_data)
+            player_data.is_alive = False
+
+        return eaten_players, eaten_by_players
+
+    def add_player_swallowed_points(self, player_data, eaten_player):
+        player_data.radius *= (eaten_player.radius / 12)
+        player_data.score += max(eaten_player.score, MIN_EATEN_PLAYER_SCORE)
 
     def find_swallowed_dots(self, player_number):
         player_data = self.get_player_data(player_number)
@@ -150,25 +152,20 @@ class GameManager:
 
     def update_game_state(self, player_number):
         modified_players = []
+        player_data = self.get_player_data(player_number)
 
         swallowed_dots = self.find_swallowed_dots(player_number)
         if len(swallowed_dots) > 0:
             self.add_dots_points(player_number, swallowed_dots)
             self.remove_dots(swallowed_dots)
 
-        swallowed_players = self.update_swallowed_players(player_number)
-        # swallower = self.update_swallowed_by_other_player(player_number)
-        # if swallower is not None:
-        #     modified_players.append(swallower)
-        #     self.add_players_swallowed_points(swallower.player_number, [self.get_player_data(player_number)])
-        #     modified_players.append(self.get_player_data(player_number))
+        eaten_players, eaten_by_players = self.update_swallowed_players(player_number)
 
-        if len(swallowed_players) > 0:
-            self.add_players_swallowed_points(player_number, swallowed_players)
-            modified_players += swallowed_players
+        modified_players += eaten_players
+        modified_players += eaten_by_players
 
-        if len(swallowed_dots) > 0 or len(swallowed_players) > 0:
-            modified_players.append(self.get_player_data(player_number))
+        if len(swallowed_dots) > 0 or len(modified_players) > 0:
+            modified_players.append(player_data)
 
         return modified_players, DotUtils.get_ids(swallowed_dots)
 
