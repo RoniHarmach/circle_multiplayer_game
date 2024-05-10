@@ -139,6 +139,7 @@ def client_window_handler(client_notification_queue):
     mouse_move_handler = MouseMoveHandler()
     mouse_pos = None
     while running:
+
         for event in pygame.event.get():
 
             if event.type == pygame.QUIT:
