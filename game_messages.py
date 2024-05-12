@@ -11,6 +11,10 @@ class GameInitMessage:
     other_players: Dict[int, PlayerData]
     dots: Dict[int, DotData]
 
+@dataclass
+class GameResults:
+    sorted_players: List[PlayerData]
+
 
 @dataclass
 class GameStateChangeMessage:
@@ -22,4 +26,3 @@ class GameStateChangeMessage:
 class PlayerMovementMessage:
     player_number: int
     coords: Tuple[int, int]
-

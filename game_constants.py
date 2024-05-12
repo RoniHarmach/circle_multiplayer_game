@@ -3,7 +3,7 @@ import pygame
 SCREEN_WIDTH = 1100
 SCREEN_HEIGHT = 700
 SCORE_BOARD_HEIGHT = 40
-OUTER_CIRCLE_SIZE = 2
+OUTER_CIRCLE_SIZE = 3
 NUM_OF_PLAYERS = 3
 PLAYER_COLORS = [pygame.Color("red"), pygame.Color("green"), pygame.Color("blue")]
 PLAYER_INITIAL_COORDS = [(500, 210), (130, 400), (300, 120)]

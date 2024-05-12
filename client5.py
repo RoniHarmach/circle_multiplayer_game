@@ -19,6 +19,8 @@ pygame.init()
 player: Player = None
 score_board = ScoreBoard()
 game_over = GameOver()
+running = False
+game_finished = False
 
 
 def remove_dots(dot_ids):
@@ -53,6 +55,7 @@ def get_other_players_data():
 
 def redraw_screen(screen):
     global player, score_board, other_players, player_posintion
+    pygame.display.set_caption("Holes Game - Roni Harmach")
     screen.fill(pygame.Color("white"))
     for other_player in get_live_players():
         other_player.draw(screen)
@@ -90,7 +93,6 @@ def update_player_state(player_data):
         player.player_data = player_data
         is_active_player = player_data.is_alive
     else:
-        print(f"updating player {player_data.player_number}: {player_data.is_alive}")
         other_players[player_data.player_number].player_data = player_data
 
 
@@ -111,12 +113,39 @@ def handle_game_state_change(data, screen):
     update_players_states(message.players)
     remove_dots(message.removed_dots)
     add_dot(message.added_dot)
-    if message.players is not None and  len(message.players) > 0:
+    if message.players is not None and len(message.players) > 0:
         score_board.update_state(player.player_data, get_other_players_data())
     redraw_screen(screen)
 
 
+def load_podium_screen(message, screen):
+    pygame.display.set_caption("Holes Game - Roni Harmach")
+    deserialized_players_rating = pickle.loads(message)
+    background_image_path = "sprite/podium3.png"
+    background_image = pygame.image.load(background_image_path).convert()
+    font = pygame.font.Font(None, 36)
+    placements = {3: [530, 230],
+                  2: [335, 288],
+                  1: [730, 318]
+                  }
+    screen.blit(background_image, (0, 0))
+
+    for i in range(3):
+        deserialized_players_rating.sorted_players[i][1].radius = 40
+        deserialized_players_rating.sorted_players[i][1].coord = placements[i+1]
+        player = Player(player_data=deserialized_players_rating.sorted_players[i][1])
+        player.draw(screen)
+        text_surface = font.render(f"score: {str(player.player_data.score)}", True, pygame.Color("black"))
+        text_rect = text_surface.get_rect()
+        text_rect.center = (deserialized_players_rating.sorted_players[i][1].coord[0],
+                            deserialized_players_rating.sorted_players[i][1].coord[1] - 70)
+        screen.blit(text_surface, text_rect)
+
+    pygame.display.flip()
+
+
 def handle_user_events(message: UserEventMessage, screen, client_notification_queue):
+    global running, game_finished
     if message.code == ProtocolCodes.GAME_INIT:
         initialize_game(message.data, client_notification_queue)
     elif message.code == ProtocolCodes.LOAD_ENTRY_SCREEN:
@@ -127,12 +156,15 @@ def handle_user_events(message: UserEventMessage, screen, client_notification_qu
         handle_other_players_movements(message.data, screen)
     elif message.code == ProtocolCodes.GAME_STATE_CHANGE:
         handle_game_state_change(message.data, screen)
+    elif message.code == ProtocolCodes.GAME_RESULTS:
+        game_finished = True
+        load_podium_screen(message.data, screen)
 
 
 def client_window_handler(client_notification_queue):
-    global player
+    global player, running, is_active_player, game_finished
     running = True
-
+    pygame.display.set_caption("Holes Game - Roni Harmach")
     screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
     screen.fill(pygame.Color("white"))
     pygame.display.flip()
@@ -141,16 +173,15 @@ def client_window_handler(client_notification_queue):
     while running:
 
         for event in pygame.event.get():
-
             if event.type == pygame.QUIT:
                 running = False
                 break
-            elif event.type == pygame.MOUSEMOTION and is_active_player:
+            elif event.type == pygame.MOUSEMOTION and is_active_player and not game_finished:
                 mouse_pos = event.pos
 
             elif event.type == pygame.USEREVENT:
                 handle_user_events(event.message, screen, client_notification_queue)
-        if mouse_pos is not None:
+        if mouse_pos is not None and not game_finished:
             if mouse_move_handler.handle_movement(player, mouse_pos):
                 redraw_screen(screen)
                 client_notification_queue.put(UserEventMessage(ProtocolCodes.PLAYER_MOVED, pickle.dumps(player.player_data.coord)))
@@ -164,8 +195,8 @@ def handle_server_messages(server_socket):
     global connected
     while connected:
         code, bdata = GameProtocol.read_data(server_socket)
-        if code == ProtocolCodes.END_GAME:
-            print("Server ended game")
+        if code == ProtocolCodes.SERVER_DISCONNECT:
+            print("Server disconnected")
             server_socket.close()
             break
 
@@ -174,6 +205,8 @@ def handle_server_messages(server_socket):
         if bdata == b'' and code not in [ProtocolCodes.START_GAME, ProtocolCodes.GAME_INIT]:
             print('Seems server disconnected abnormally')
             break
+        if code == ProtocolCodes.GAME_RESULTS:
+            connected = False
 
 
 def open_client_socket(ip):
@@ -210,7 +243,6 @@ def main(server_ip):
     server_notifications_thread = threading.Thread(target=handle_client_messages, args=(server_socket, client_notification_queue,))
     server_notifications_thread.start()
     pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(code=ProtocolCodes.LOAD_ENTRY_SCREEN, data=b'')))
-
     create_client_request(server_socket)
 
     window_thread.join()
@@ -222,3 +254,4 @@ if __name__ == '__main__':
         main(sys.argv[1])
     else:
         main('127.0.0.1')
+        #main('0.0.0.0')

@@ -12,5 +12,6 @@ class ProtocolCodes(Enum):
     LOAD_ENTRY_SCREEN = "LDSC"
     PLAYER_DIED = "PLDE"
     CLIENT_DISCONNECTED = "CLTD"
-    END_GAME = "ENDG"
+    SERVER_DISCONNECT = "SRVD"
+    GAME_RESULTS = "GMRS"
 

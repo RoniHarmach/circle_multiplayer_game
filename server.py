@@ -4,7 +4,7 @@ from queue import Queue
 
 from game_constants import PLAYER_COLORS, PLAYER_INITIAL_COORDS
 from game_event import GameEvent
-from game_messages import GameInitMessage, GameStateChangeMessage, PlayerMovementMessage
+from game_messages import GameInitMessage, GameStateChangeMessage, PlayerMovementMessage, GameResults
 from game_manager import GameManager
 from player_data import PlayerData
 from game_protocol import GameProtocol
@@ -77,8 +77,29 @@ def handle_add_dot(dot_id):
     notify_all_players(serialized_message, ProtocolCodes.GAME_STATE_CHANGE)
 
 
-def handle_end_game():
-    notify_all_players(b'', ProtocolCodes.END_GAME)
+def handle_server_disconnection():
+    notify_all_players(b'', ProtocolCodes.SERVER_DISCONNECT)
+
+
+def handle_player_to_dot(message):
+    #change_state_message = GameStateChangeMessage(added_dot=game_manager.get_dot_data(dot_id), players=[])
+    #serialized_message = pickle.dumps(change_state_message)
+    #print("added dot")
+    #notify_all_players(serialized_message, ProtocolCodes.GAME_STATE_CHANGE)
+    pass
+
+
+def handle_game_results():
+
+    change_state_message = GameResults(sorted_players=game_manager.get_score_rating())
+    serialized_message = pickle.dumps(change_state_message)
+    notify_all_players(serialized_message, ProtocolCodes.GAME_RESULTS)
+    print("in handle game results")
+
+def check_end_game():
+    has_winner, winner = game_manager.has_winner()
+    if has_winner:
+        handle_game_results()
 
 
 def handle_server_messages(server_notification_queue):
@@ -92,10 +113,14 @@ def handle_server_messages(server_notification_queue):
             handle_player_ready_message(event.player_number)
         elif event.code == ServerEventType.PLAYER_MOVED:
             handle_player_movement(event.player_number, event.message)
+            check_end_game()
         elif event.code == ServerEventType.ADD_DOT:
             handle_add_dot(event.message)
-        elif event.code == ServerEventType.END_GAME:
-            handle_end_game()
+        elif event.code == ServerEventType.SERVER_DISCONNECT:
+            handle_server_disconnection()
+        elif event.code == ServerEventType.PLAYER_TO_DOT:
+            handle_player_to_dot(event.message)
+
             break
     print("Exit handle_server_messages thread")
 
@@ -112,6 +137,8 @@ def handle_client(sock, player_number, server_notification_queue):
         code, message = GameProtocol.read_data(sock)
         if code == ProtocolCodes.CLIENT_DISCONNECTED:
             print(f"Player {player_number} Disconnected")
+            client_event = GameEvent(code=ServerEventType.CLIENT_DISCONNECTED, player_number=player_number)
+            server_notification_queue.put(client_event)
             finish = True
         if code == ProtocolCodes.CREATE_PLAYER_REQUEST:
             client_event = GameEvent(code=ServerEventType.CREATE_PLAYER_REQUEST, player_number=player_number)
@@ -122,15 +149,13 @@ def handle_client(sock, player_number, server_notification_queue):
         elif code == ProtocolCodes.PLAYER_MOVED:
             client_event = GameEvent(code=ServerEventType.PLAYER_MOVED, message=message, player_number=player_number)
             server_notification_queue.put(client_event)
-        elif code == ProtocolCodes.PLAYER_READY:
-            client_event = GameEvent(code=ServerEventType.PLAYER_READY, player_number=player_number)
-            server_notification_queue.put(client_event)
     game_manager.set_player_is_alive(player_number, False)
     sock.close()
+    print("handle_client cloded")
 
 
 def create_player_state_message(player_number):
-    return  pickle.dumps(game_manager.get_player_data(player_number))
+    return pickle.dumps(game_manager.get_player_data(player_number))
 
 
 def get_player_position_message(player_number):
@@ -227,7 +252,7 @@ def accept_clients(srv_sock):
     except socket.timeout:
         print("got timeout")
         all_to_die = True
-        close_event = GameEvent(code=ServerEventType.END_GAME)
+        close_event = GameEvent(code=ServerEventType.SERVER_DISCONNECT)
         server_notification_queue.put(close_event)
     finally:
 

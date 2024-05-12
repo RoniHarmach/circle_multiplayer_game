@@ -5,7 +5,6 @@ from dot_data import DotData
 from dot_utils import DotUtils
 from game_constants import *
 from player_state import PlayerState
-from player_utils import PlayerUtils
 
 
 @dataclass
@@ -23,6 +22,11 @@ class GameManager:
     def add_player_data(self, player_number, player_data):
         state = self.players_states[player_number]
         state.player_data = player_data
+
+
+    def get_players_data(self):
+        return {key: player_state.player_data for key, player_state in self.players_states.items()}
+
 
     def get_other_players_data(self, player_number):
         return {key: player_state.player_data for key, player_state in self.players_states.items() if
@@ -55,6 +59,10 @@ class GameManager:
     def is_ready(self):
         return all(player_state.player_ready for player_state in self.players_states.values()) \
             and len(self.players_states) == NUM_OF_PLAYERS
+
+    def get_live_players(self):
+        return [player_state.player_data for player_state in self.players_states.values()
+         if player_state.player_data.is_alive is True]
 
     def get_all_player_numbers(self):
         return self.players_states.keys()
@@ -125,6 +133,17 @@ class GameManager:
             player_data.is_alive = False
 
         return eaten_players, eaten_by_players
+
+    def get_score_rating(self):
+        return sorted(self.get_players_data().items(), key=lambda x: x[1].score)
+        #return sorted(self.get_players_data(), key=lambda player_data: player_data.score)
+
+    def has_winner(self):
+        alive_players = self.get_live_players()
+        if len(alive_players) == 1 and self.is_ready():
+            return True, alive_players[0]
+        else:
+            return False, None
 
     def add_player_swallowed_points(self, player_data, eaten_player):
         player_data.radius *= (eaten_player.radius / 12)

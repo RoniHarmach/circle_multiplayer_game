@@ -7,4 +7,6 @@ class ServerEventType(Enum):
     START_GAME = 2
     PLAYER_MOVED = 3
     ADD_DOT = 4
-    END_GAME = 5
+    SERVER_DISCONNECT = 5
+    PLAYER_TO_DOT = 6
+    CLIENT_DISCONNECTED = 7
