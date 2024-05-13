@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-
 from typing import List, Dict, Optional, Tuple
 from dot_data import DotData
 from player_data import PlayerData
@@ -10,6 +9,7 @@ class GameInitMessage:
     player_data: PlayerData
     other_players: Dict[int, PlayerData]
     dots: Dict[int, DotData]
+
 
 @dataclass
 class GameResults:
