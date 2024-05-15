@@ -51,7 +51,6 @@ class MouseMoveHandler:
             return player_moved
         dx_change = player_data.coord[0] + int(dx / distance * speed)
         dy_change = player_data.coord[1] + int(dy / distance * speed)
-        # print(f"({player_data.coord[0]},{player_data.coord[1]}) -> ({dx_change},{dy_change}) - mouse at ({coord[0]}, {coord[1]}), dx={dx}, dy={dy}")
         if distance > 5 and self.allow_player_movement(player, [dx_change, dy_change]):
             player_data.coord = (dx_change, dy_change)
             player_moved = True

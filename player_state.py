@@ -9,3 +9,4 @@ class PlayerState:
     client_socket: socket
     player_data: Optional[PlayerData] = None
     player_ready: bool = False
+    connected: bool = True

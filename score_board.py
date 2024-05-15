@@ -8,6 +8,7 @@ class ScoreBoard(Sprite):
 
     def __init__(self):
         super().__init__()
+        self.labels = []
 
     def create_label(self, label, player_data):
         font = pygame.font.Font(None, 36)
@@ -15,8 +16,6 @@ class ScoreBoard(Sprite):
 
     def update_state(self, player, other_players):
         sorted_other_players = sorted(other_players, key=lambda other_playr: other_playr.player_number)
-        #labels = [f"your player score:{player.score}"]
-        print("update score board")
         self.labels = []
         current_player_label = self.create_label(f"Your Player {player.player_number} score:{player.score}", player)
         self.labels.append((current_player_label, (1, 5)))

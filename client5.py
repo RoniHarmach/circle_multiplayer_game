@@ -40,7 +40,6 @@ def load_entry_screen(screen):
 
 def start_game(screen):
     global is_active_player
-    print("Starting game")
     redraw_screen(screen)
     is_active_player = True
 
@@ -54,7 +53,7 @@ def get_other_players_data():
 
 
 def redraw_screen(screen):
-    global player, score_board, other_players, player_posintion
+    global player, score_board, other_players
     pygame.display.set_caption("Holes Game - Roni Harmach")
     screen.fill(pygame.Color("white"))
     for other_player in get_live_players():
@@ -157,8 +156,10 @@ def handle_user_events(message: UserEventMessage, screen, client_notification_qu
     elif message.code == ProtocolCodes.GAME_STATE_CHANGE:
         handle_game_state_change(message.data, screen)
     elif message.code == ProtocolCodes.GAME_RESULTS:
-        game_finished = True
         load_podium_screen(message.data, screen)
+        game_finished = True
+    # elif message.code == ProtocolCodes.DISCONNECT_FROM_SERVER:
+    #     client_notification_queue.put(UserEventMessage(ProtocolCodes.CLIENT_DISCONNECTED, b''))
 
 
 def client_window_handler(client_notification_queue):
@@ -195,18 +196,19 @@ def handle_server_messages(server_socket):
     global connected
     while connected:
         code, bdata = GameProtocol.read_data(server_socket)
-        if code == ProtocolCodes.SERVER_DISCONNECT:
-            print("Server disconnected")
-            server_socket.close()
-            break
-
-        pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(code, bdata)))
 
         if bdata == b'' and code not in [ProtocolCodes.START_GAME, ProtocolCodes.GAME_INIT]:
             print('Seems server disconnected abnormally')
             break
+
+        pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(code, bdata)))
+
         if code == ProtocolCodes.GAME_RESULTS:
             connected = False
+            pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(ProtocolCodes.CLIENT_DISCONNECTED, bdata)))
+            server_socket.close()
+
+
 
 
 def open_client_socket(ip):
@@ -215,7 +217,6 @@ def open_client_socket(ip):
     port = 6060
     try:
         sock.connect((ip, port))
-        print(f'Connect succeeded {ip}:{port}')
         connected = True
         return sock
     except:
@@ -224,9 +225,14 @@ def open_client_socket(ip):
 
 
 def handle_client_messages(server_socket, client_notification_queue):
-    while True:
+    read_client_messages = True
+    while read_client_messages:
         user_message = client_notification_queue.get()
         GameProtocol.send_data(server_socket, user_message.code, user_message.data)
+        if user_message.code == ProtocolCodes.CLIENT_DISCONNECTED:
+            GameProtocol.send_data(server_socket, ProtocolCodes.CLIENT_DISCONNECTED, b'')
+            read_client_messages = False
+    server_socket.close()
 
 
 def create_client_request(server_socket):

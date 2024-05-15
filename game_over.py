@@ -12,11 +12,6 @@ class GameOver(Sprite):
     def draw(self, screen):
         pygame.display.set_caption("Transparent Image Label")
         image = pygame.image.load("sprite/game_over7.png")  # Replace "image_with_transparency.png" with your image file
-        # image.set_colorkey((255, 255, 255))  # Set white as the transparent color
-        # surface = pygame.Surface(image.get_size(), pygame.SRCALPHA)
-        # surface.fill((255, 255, 255, 128))  # Fill with white background color
-        # surface.blit(image, (190, 30))  # Adjust the position as needed
-        # screen.blit(surface, (0, 0))
 
         image_rect = image.get_rect()
         screen_width, screen_height = screen.get_size()

@@ -27,7 +27,6 @@ class GameManager:
     def get_players_data(self):
         return {key: player_state.player_data for key, player_state in self.players_states.items()}
 
-
     def get_other_players_data(self, player_number):
         return {key: player_state.player_data for key, player_state in self.players_states.items() if
                          key != player_number}
@@ -43,6 +42,10 @@ class GameManager:
 
     def set_player_is_alive(self, player_number, is_alive):
         self.players_states[player_number].player_data.is_alive = is_alive
+
+    def set_client_disconnected(self, player_number):
+        self.players_states[player_number].connected = False
+        self.players_states[player_number].client_socket = None
 
     def update_position(self, player_number, coord):
         self.players_states[player_number].player_data.coord = coord
@@ -64,8 +67,12 @@ class GameManager:
         return [player_state.player_data for player_state in self.players_states.values()
          if player_state.player_data.is_alive is True]
 
-    def get_all_player_numbers(self):
-        return self.players_states.keys()
+    def get_all_connected_player_numbers(self):
+        return [key for key, player_state in self.players_states.items() if player_state.connected]
+
+    def is_connected(self, player_number):
+        return self.players_states[player_number].connected
+
 
     def get_client_socket(self, player_number):
         return self.players_states[player_number].client_socket
@@ -136,7 +143,6 @@ class GameManager:
 
     def get_score_rating(self):
         return sorted(self.get_players_data().items(), key=lambda x: x[1].score)
-        #return sorted(self.get_players_data(), key=lambda player_data: player_data.score)
 
     def has_winner(self):
         alive_players = self.get_live_players()
@@ -156,7 +162,6 @@ class GameManager:
         return swallowed_dots
 
     def remove_dots(self, dots_to_remove):
-        print(f"removing dots {dots_to_remove}")
         for dot in dots_to_remove:
             del self.dots[dot.id]
 
@@ -171,6 +176,9 @@ class GameManager:
 
     def update_game_state(self, player_number):
         modified_players = []
+        if not self.is_connected(player_number):
+            return [self.get_player_data(player_number)], []
+
         player_data = self.get_player_data(player_number)
 
         swallowed_dots = self.find_swallowed_dots(player_number)

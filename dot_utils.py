@@ -4,6 +4,7 @@ from game_constants import SCREEN_WIDTH, SCREEN_HEIGHT, SCORE_BOARD_HEIGHT
 
 MIN_DISTANCE_FROM_BORDERS = 5
 
+
 class DotUtils:
     @staticmethod
     def create_random_dot(id):
