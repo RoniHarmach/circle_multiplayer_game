@@ -2,12 +2,12 @@ import socket, threading, pickle
 import time
 from queue import Queue
 
-from game_constants import PLAYER_COLORS, PLAYER_INITIAL_COORDS,GAME_STARTED
+from game_constants import *
 from game_event import GameEvent
 from game_messages import GameInitMessage, GameStateChangeMessage, PlayerMovementMessage, GameResults
 from game_manager import GameManager
 from player_data import PlayerData
-from game_protocol import GameProtocol
+from game_protocol import *
 from player_state import PlayerState
 from protocol_codes import ProtocolCodes
 from server_event_types import ServerEventType
@@ -18,8 +18,7 @@ game_manager = GameManager()
 
 def open_server_socket():
     srv_sock = socket.socket()
-    port = 6060
-    srv_sock.bind(('0.0.0.0', port))
+    srv_sock.bind(('0.0.0.0', PORT))
     srv_sock.listen(2)
     srv_sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     return srv_sock
@@ -133,20 +132,23 @@ def handle_client(sock, player_number, server_notification_queue):
         if all_to_die:
             print('will close due to main server issue')
             break
-        code, message = GameProtocol.read_data(sock)
-        if code == ProtocolCodes.CLIENT_DISCONNECTED:
-            client_event = GameEvent(code=ServerEventType.CLIENT_CONNECTION_CLOSED, player_number=player_number)
-            server_notification_queue.put(client_event)
-            finish = True
-        if code == ProtocolCodes.CREATE_PLAYER_REQUEST:
-            client_event = GameEvent(code=ServerEventType.CREATE_PLAYER_REQUEST, player_number=player_number)
-            server_notification_queue.put(client_event)
-        elif code == ProtocolCodes.PLAYER_READY:
-            client_event = GameEvent(code=ServerEventType.PLAYER_READY, player_number=player_number)
-            server_notification_queue.put(client_event)
-        elif code == ProtocolCodes.PLAYER_MOVED:
-            client_event = GameEvent(code=ServerEventType.PLAYER_MOVED, message=message, player_number=player_number)
-            server_notification_queue.put(client_event)
+        try:
+            code, message = GameProtocol.read_data(sock)
+            if code == ProtocolCodes.CLIENT_DISCONNECTED:
+                client_event = GameEvent(code=ServerEventType.CLIENT_CONNECTION_CLOSED, player_number=player_number)
+                server_notification_queue.put(client_event)
+                finish = True
+            if code == ProtocolCodes.CREATE_PLAYER_REQUEST:
+                client_event = GameEvent(code=ServerEventType.CREATE_PLAYER_REQUEST, player_number=player_number)
+                server_notification_queue.put(client_event)
+            elif code == ProtocolCodes.PLAYER_READY:
+                client_event = GameEvent(code=ServerEventType.PLAYER_READY, player_number=player_number)
+                server_notification_queue.put(client_event)
+            elif code == ProtocolCodes.PLAYER_MOVED:
+                client_event = GameEvent(code=ServerEventType.PLAYER_MOVED, message=message, player_number=player_number)
+                server_notification_queue.put(client_event)
+        except GameProtocolError as ex:
+            print(f"Protocol error occurred: {ex}")
     ### game_manager.set_player_is_alive(player_number, False)
     sock.close()
 

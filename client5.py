@@ -3,7 +3,7 @@ from typing import Dict
 from dot import Dot
 from game_constants import *
 from game_over import GameOver
-from game_protocol import GameProtocol
+from game_protocol import *
 from mouse_move_handler import MouseMoveHandler
 from player import Player
 from protocol_codes import ProtocolCodes
@@ -195,18 +195,22 @@ def client_window_handler(client_notification_queue):
 def handle_server_messages(server_socket):
     global connected
     while connected:
-        code, bdata = GameProtocol.read_data(server_socket)
+        try:
+            code, bdata = GameProtocol.read_data(server_socket)
 
-        if bdata == b'' and code not in [ProtocolCodes.START_GAME, ProtocolCodes.GAME_INIT]:
-            print('Seems server disconnected abnormally')
-            break
+            if bdata == b'' and code not in [ProtocolCodes.START_GAME, ProtocolCodes.GAME_INIT]:
+                print('Seems server disconnected abnormally')
+                break
 
-        pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(code, bdata)))
+            pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(code, bdata)))
 
-        if code == ProtocolCodes.GAME_RESULTS:
-            connected = False
-            pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(ProtocolCodes.CLIENT_DISCONNECTED, bdata)))
-            server_socket.close()
+            if code == ProtocolCodes.GAME_RESULTS:
+                connected = False
+                pygame.event.post(pygame.event.Event(pygame.USEREVENT, message=UserEventMessage(ProtocolCodes.CLIENT_DISCONNECTED, bdata)))
+                server_socket.close()
+        except GameProtocolError as ex:
+            print(f"Protocol error occurred: {ex}")
+
 
 
 
@@ -214,13 +218,12 @@ def handle_server_messages(server_socket):
 def open_client_socket(ip):
     global connected
     sock = socket.socket()
-    port = 6060
     try:
-        sock.connect((ip, port))
+        sock.connect((ip, PORT))
         connected = True
         return sock
     except:
-        print(f'Error while trying to connect.  Check ip or port -- {ip}:{port}')
+        print(f'Error while trying to connect.  Check ip or port -- {ip}:{PORT}')
         return None
 
 
@@ -259,5 +262,6 @@ if __name__ == '__main__':
     if len(sys.argv) > 1:
         main(sys.argv[1])
     else:
-        main('127.0.0.1')
+        main(HOST)
         #main('0.0.0.0')
+        #main('10.68.121.10')
